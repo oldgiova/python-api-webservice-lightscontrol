@@ -1,11 +1,11 @@
-from flask import Flask, url_for, render_template, request, flash, redirect, session, abort
+from flask import Flask, url_for, render_template, request, flash, redirect, session, abort, jsonify
 import RPi.GPIO as GPIO
 import subprocess, os, logging 
-
 import ipdb
 
 '''initial VAR'''
 RELAIS_4_GPIO = 2
+TOKEN = 'aserwrkljlkdgsdglkj12e230'
 
 logging.basicConfig(
     filename='server.log',
@@ -18,20 +18,34 @@ app = Flask(__name__)
 '''functions'''
 
 # lights on
-@app.route('/accendilucicortile', methods=['GET'])
+@app.route('/accendilucicortile', methods=['POST'])
 def lights_on():
-    logging.debug('accendi luci cortile')
-    GPIO.output(RELAIS_4_GPIO, GPIO.LOW)
-    logging.debug('Lights are on')
-    return "<h1>Lights on</h1>"
+    token = request.json.get('token', None)
+    if token != TOKEN:
+        logging.debug('not authorized access')
+        return jsonify({"msg": "Unauthorized"}), 400
+    elif token == TOKEN:
+        logging.debug('accendi luci cortile')
+        GPIO.output(RELAIS_4_GPIO, GPIO.LOW)
+        logging.debug('Lights are on')
+        return jsonify({"msg": "Lights on"}), 200
+    else:
+        return jsonify({"msg": "This should never happen"}), 200
 
 # lights off
-@app.route('/spegnilucicortile', methods=['GET'])
+@app.route('/spegnilucicortile', methods=['POST'])
 def lights_off():
-    logging.debug('spegni luci cortile')
-    GPIO.output(RELAIS_4_GPIO, GPIO.HIGH)
-    logging.debug('Lights are off')
-    return "<h1>Lights off</h1>"
+    token = request.json.get('token', None)
+    if token != TOKEN:
+        logging.debug('not authorized access')
+        return jsonify({"msg": "Unauthorized"}), 400
+    elif token == TOKEN:
+        logging.debug('spegni luci cortile')
+        GPIO.output(RELAIS_4_GPIO, GPIO.HIGH)
+        logging.debug('Lights are off')
+        return jsonify({"msg": "Lights off"}), 200
+    else:
+        return jsonify({"msg": "This should never happen"}), 200
 
 
 if __name__ == '__main__':
