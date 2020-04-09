@@ -6,6 +6,9 @@ import ipdb
 
 '''initial VAR'''
 RELAIS_4_GPIO = 2
+RELAIS_WATER_GPIO = 22
+water_time = 600
+
 
 logging.basicConfig(
     filename='server.log',
@@ -33,11 +36,28 @@ def lights_off():
     logging.debug('Lights are off')
     return "<h1>Lights off</h1>"
 
+# water on
+@app.route('/accendiacqua', methods=['GET'])
+def water_on():
+    logging.debug('avvia irrigazione')
+    GPIO.output(RELAIS_WATER_GPIO, GPIO.LOW)
+    logging.debug('Starting Water')
+    return "<h1>Water on</h1>"
+
+# water off
+@app.route('/spegniacqua', methods=['GET'])
+def water_off():
+    logging.debug('spegni irrigazione')
+    GPIO.output(RELAIS_WATER_GPIO, GPIO.HIGH)
+    logging.debug('Stopping Water')
+    return "<h1>Water off</h1>"
+
 
 if __name__ == '__main__':
     logging.info('starting up')
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(RELAIS_4_GPIO,GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(RELAIS_WATER_GPIO, GPIO.OUT, initial=GPIO.HIGH)
     app.secret_key = os.urandom(12)
     try:
         app.run(
@@ -48,4 +68,5 @@ if __name__ == '__main__':
     except:
         logging.info('exception')
     finally:
+        GPIO.output(RELAIS_WATER_GPIO, GPIO.HIGH)
         GPIO.cleanup()
