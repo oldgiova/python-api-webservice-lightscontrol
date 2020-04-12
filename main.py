@@ -2,12 +2,14 @@ from flask import Flask, url_for, render_template, request, flash, redirect, ses
 import RPi.GPIO as GPIO
 import subprocess, os, logging 
 import ipdb
+from config import Config
+from time import sleep
 
 '''initial VAR'''
+# Light GPIO
 RELAIS_4_GPIO = 2
-TOKEN = 'aserwrkljlkdgsdglkj12e230'
+# Water GPIO
 RELAIS_WATER_GPIO = 22
-water_time = 600
 
 logging.basicConfig(
     filename='server.log',
@@ -16,10 +18,13 @@ logging.basicConfig(
     datefmt='%m/%d/%Y %I:%M:%S %p'
     )
 app = Flask(__name__)
+app.config.from_object(Config)
+TOKEN = app.config['TOKEN']
+logging.debug('print token: ' + TOKEN)
 
 '''functions'''
 
-# lights on
+# Turn the light on
 @app.route('/accendilucicortile', methods=['POST'])
 def lights_on():
     token = request.json.get('token', None)
@@ -27,7 +32,7 @@ def lights_on():
         logging.debug('not authorized access')
         return jsonify({"msg": "Unauthorized"}), 400
     elif token == TOKEN:
-        logging.debug('accendi luci cortile')
+        logging.debug('Turn the lights on')
         GPIO.output(RELAIS_4_GPIO, GPIO.LOW)
         logging.debug('Lights are on')
         return jsonify({"msg": "Lights on"}), 200
@@ -42,7 +47,7 @@ def lights_off():
         logging.debug('not authorized access')
         return jsonify({"msg": "Unauthorized"}), 400
     elif token == TOKEN:
-        logging.debug('spegni luci cortile')
+        logging.debug('Turn the lights off')
         GPIO.output(RELAIS_4_GPIO, GPIO.HIGH)
         logging.debug('Lights are off')
         return jsonify({"msg": "Lights off"}), 200
@@ -50,27 +55,57 @@ def lights_off():
         return jsonify({"msg": "This should never happen"}), 200
 
 # water on
-@app.route('/accendiacqua', methods=['GET'])
+@app.route('/accendiacqua', methods=['POST'])
 def water_on():
-    logging.debug('avvia irrigazione')
-    GPIO.output(RELAIS_WATER_GPIO, GPIO.LOW)
-    logging.debug('Starting Water')
-    return "<h1>Water on</h1>"
+    token = request.json.get('token', None)
+    if token != TOKEN:
+        logging.debug('not authorized access')
+        return jsonify({"msg": "Unauthorized"}), 400
+    elif token == TOKEN:
+        GPIO.output(RELAIS_WATER_GPIO, GPIO.LOW)
+        logging.debug('Starting irrigation')
+        sleep(5)
+        if GPIO.input(RELAIS_WATER_GPIO):
+            logging.error('Irrigation not started')
+        else:
+            logging.debug('Irrigation correctly started')
+        return "<h1>Irrigation is on</h1>"
+    else:
+        return jsonify({"msg": "This should never happen"}), 200
 
 # water off
-@app.route('/spegniacqua', methods=['GET'])
+@app.route('/spegniacqua', methods=['POST'])
 def water_off():
-    logging.debug('spegni irrigazione')
-    GPIO.output(RELAIS_WATER_GPIO, GPIO.HIGH)
-    logging.debug('Stopping Water')
-    return "<h1>Water off</h1>"
+    token = request.json.get('token', None)
+    if token != TOKEN:
+        logging.debug('not authorized access')
+        return jsonify({"msg": "Unauthorized"}), 400
+    elif token == TOKEN:
+        GPIO.output(RELAIS_WATER_GPIO, GPIO.HIGH)
+        logging.debug('Stopping Irrigation')
+        sleep(5)
+        if GPIO.input(RELAIS_WATER_GPIO):
+            logging.debug('Irrigation correctly stopped')
+        else:
+            logging.error('Irrigation not stopped')
+        return "<h1>Irrigation is off</h1>"
+    else:
+        return jsonify({"msg": "This should never happen"}), 200
 
 
 if __name__ == '__main__':
     logging.info('starting up')
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(RELAIS_4_GPIO,GPIO.OUT, initial=GPIO.HIGH)
-    GPIO.setup(RELAIS_WATER_GPIO, GPIO.OUT, initial=GPIO.HIGH)
+    GPIO.setup(RELAIS_4_GPIO,GPIO.OUT, initial=GPIO.HIGH) #lights off
+    if GPIO.input(RELAIS_4_GPIO):
+        logging.debug('Luce spenta')
+    else:
+        logging.debug('Luce accesa')
+    GPIO.setup(RELAIS_WATER_GPIO, GPIO.OUT, initial=GPIO.HIGH) #water off
+    if GPIO.input(RELAIS_WATER_GPIO):
+        logging.debug('Irrigazione spenta')
+    else:
+        logging.debug('Irrigazione accesa')
     app.secret_key = os.urandom(12)
     try:
         app.run(
