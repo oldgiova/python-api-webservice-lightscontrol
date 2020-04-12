@@ -20,7 +20,6 @@ logging.basicConfig(
 app = Flask(__name__)
 app.config.from_object(Config)
 TOKEN = app.config['TOKEN']
-logging.debug('print token: ' + TOKEN)
 
 '''functions'''
 
